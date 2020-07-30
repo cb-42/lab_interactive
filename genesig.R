@@ -1,4 +1,6 @@
-# Gene expression significance testing script: Christopher Brown - released on 1/21/2020
+# Gene expression significance testing script: Christopher Brown - revised on 7/28/2020
+# Run from command line using: source("path_to_genesig.R")
+# Then: genesig("path_to_input_file")
 
 genesig <- function(infile) {
   # Prompt user to input the significance threshold
@@ -12,9 +14,9 @@ genesig <- function(infile) {
   }
 
   # Note: column names (groups) will be de-duplicated on load
-  dfgen <- read.csv(infile) # assume input is .csv, with levels in columns and genes in rows
+  dfgen <- read.csv(infile, stringsAsFactors = FALSE) # assume input is .csv, with levels in columns and genes in rows
   dfgen_t <- t(dfgen) # transpose the dataframe
-  df <- setNames(data.frame(rownames(dfgen_t)[-1], dfgen_t[-1,], row.names = NULL, stringsAsFactors = F), c("Group", dfgen_t[1,])) # create dataframe, exclude top row (colnames); add colnames: Group + all gene names
+  df <- setNames(data.frame(rownames(dfgen_t)[-1], dfgen_t[-1,], row.names = NULL, stringsAsFactors = FALSE), c("Group", dfgen_t[1,])) # create dataframe, exclude top row (colnames); add colnames: Group + all gene names
   # create factor; truncate digits (which were created when colnames were de-duplicated on import)
   df$Group <- factor(gsub(gsub(x = colnames(dfgen)[-1], pattern = " ", replacement = "_"), pattern=".\\d", replacement = ""))
   
@@ -22,14 +24,14 @@ genesig <- function(infile) {
   siglist <- vector("list", dim(df)[2]-1)
   for(i in 1:length(siglist)) {
     results <- TukeyHSD(aov(as.numeric(df[,i+1]) ~ df[,"Group"], data = df)) # col needs to be i + 1 to skip group row
-    tmpdf <- data.frame(t(results[[1]]), Gene = colnames(df)[i+1], row.names = NULL)[4,] # transpose, keep only "p adj" stat
+    tmpdf <- data.frame(t(results[[1]]), Gene = colnames(df)[i+1], row.names = NULL, stringsAsFactors = FALSE)[4,] # transpose, keep only "p adj" stat
     ncomps <- sum(1:length(levels(df$Group)) - 1) # number of comparison columns to expect: sum(1:nlevels-1)
     siglist[[i]] <- tmpdf[, c(ncomps+1, 1:ncomps)] # put Gene column first
   }
   resdf <- do.call(rbind, siglist) # reduces list structure to dataframe
 
   if(ncomps==1) { # Yes if significant
-    yndf <- data.frame(ifelse(resdf[,2] < sig, "Yes", "No")) # need to recreate as a dataframe due to 1 column being simplified to vector
+    yndf <- data.frame(ifelse(resdf[,2] < sig, "Yes", "No"), stringsAsFactors = FALSE) # need to recreate as a dataframe due to 1 column being simplified to vector
   } else {
     yndf <- ifelse(resdf[, 2:(ncomps+1)] < sig, "Yes", "No")
   }
@@ -37,5 +39,5 @@ genesig <- function(infile) {
   resdf <- cbind(resdf, yndf)
   
   outfile <- paste0(gsub(x = infile, ".csv", ""), "_stats.csv")
-  write.csv(x = resdf, file = outfile, row.names = F) # write results to outfile based on input file
+  write.csv(x = resdf, file = outfile, row.names = FALSE) # write results to outfile based on input file
 }
