@@ -1,4 +1,4 @@
-# Gene expression significance testing script: Christopher Brown - revised on 7/28/2020
+# Gene expression significance testing script: Christopher Brown - revised 5/30/2023
 # Run from command line using: source("path_to_genesig.R")
 # Then: genesig("path_to_input_file")
 
@@ -18,15 +18,15 @@ genesig <- function(infile) {
   dfgen_t <- t(dfgen) # transpose the dataframe
   df <- setNames(data.frame(rownames(dfgen_t)[-1], dfgen_t[-1,], row.names = NULL, stringsAsFactors = FALSE), c("Group", dfgen_t[1,])) # create dataframe, exclude top row (colnames); add colnames: Group + all gene names
   # create factor; truncate digits (which were created when colnames were de-duplicated on import)
-  df$Group <- factor(gsub(gsub(x = colnames(dfgen)[-1], pattern = " ", replacement = "_"), pattern=".\\d", replacement = ""))
+  df$Group <- factor(gsub(gsub(x = colnames(dfgen)[-1], pattern = " ", replacement = "_"), pattern=".\\d+", replacement = ""))
   
   # create dataframe containing all gene expression significance tests
   siglist <- vector("list", dim(df)[2]-1)
   for(i in 1:length(siglist)) {
     results <- TukeyHSD(aov(as.numeric(df[,i+1]) ~ df[,"Group"], data = df)) # col needs to be i + 1 to skip group row
-    tmpdf <- data.frame(t(results[[1]]), Gene = colnames(df)[i+1], row.names = NULL, stringsAsFactors = FALSE)[4,] # transpose, keep only "p adj" stat
+    padj_df <- data.frame(t(results[[1]]), Gene = colnames(df)[i+1], row.names = NULL, stringsAsFactors = FALSE)[4,] # transpose, keep only "p adj" stat
     ncomps <- sum(1:length(levels(df$Group)) - 1) # number of comparison columns to expect: sum(1:nlevels-1)
-    siglist[[i]] <- tmpdf[, c(ncomps+1, 1:ncomps)] # put Gene column first
+    siglist[[i]] <- padj_df[, c(ncomps+1, 1:ncomps)] # put Gene column first
   }
   resdf <- do.call(rbind, siglist) # reduces list structure to dataframe
 
